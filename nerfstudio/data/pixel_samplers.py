@@ -39,10 +39,19 @@ def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_
     num_images, image_height, image_width, _ = batch["image"].shape
 
     # only sample within the mask, if the mask is in the batch
-    if "mask" in batch:
-        nonzero_indices = torch.nonzero(batch["mask"][..., 0].to(device), as_tuple=False)
-        chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
+    if "fg_mask" in batch:
+        nonzero_indices = torch.nonzero(batch["fg_mask"][..., 0] > 0.5, as_tuple=False)
+    elif "mask" in batch:
+        nonzero_indices = torch.nonzero(batch["mask"][..., 0] > 0.5, as_tuple=False)
+    else:
+        nonzero_indices = None
+
+    if nonzero_indices is not None and len(nonzero_indices) >= num_rays_per_batch:
+        chosen_indices = torch.randint(0, len(nonzero_indices), (num_rays_per_batch,), device=device)
         indices = nonzero_indices[chosen_indices]
+    elif nonzero_indices is not None:
+        pad_indices = torch.randint(0, len(nonzero_indices), (num_rays_per_batch - len(nonzero_indices),), device=device)
+        indices = torch.cat([nonzero_indices, nonzero_indices[pad_indices]], dim=0)
     else:
         indices = torch.floor(
             torch.rand((num_rays_per_batch, 3), device=device)
@@ -95,21 +104,45 @@ def collate_image_dataset_batch_list(batch: Dict, num_rays_per_batch: int, keep_
     all_images = []
     all_fg_masks = []
 
-    if "mask" in batch:
+    if "mask" in batch or "fg_mask" in batch:
         num_rays_in_batch = num_rays_per_batch // num_images
         for i in range(num_images):
             if i == num_images - 1:
-                num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
-            # nonzero_indices = torch.nonzero(batch["mask"][i][..., 0], as_tuple=False)
-            nonzero_indices = batch["mask"][i]
+                num_rays_in_batch = num_rays_per_batch - (num_images - 1) * (num_rays_per_batch // num_images)
 
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_in_batch)
-            indices = nonzero_indices[chosen_indices]
+            if "fg_mask" in batch:
+                mask = batch["fg_mask"][i][..., 0] > 0.5
+                nonzero_indices = torch.nonzero(mask, as_tuple=False)
+            else:
+                nonzero_indices = batch["mask"][i]
+
+            if len(nonzero_indices) >= num_rays_in_batch:
+                chosen_indices = torch.randint(0, len(nonzero_indices), (num_rays_in_batch,), device=device)
+                indices = nonzero_indices[chosen_indices]
+            else:
+                pad_indices = torch.randint(0, len(nonzero_indices), (num_rays_in_batch - len(nonzero_indices),), device=device)
+                indices = torch.cat([nonzero_indices, nonzero_indices[pad_indices]], dim=0)
+
             indices = torch.cat([torch.full((num_rays_in_batch, 1), i, device=device), indices], dim=-1)
             all_indices.append(indices)
             all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
             if "fg_mask" in batch:
                 all_fg_masks.append(batch["fg_mask"][i][indices[:, 1], indices[:, 2]])
+    # if "mask" in batch:
+    #     num_rays_in_batch = num_rays_per_batch // num_images
+    #     for i in range(num_images):
+    #         if i == num_images - 1:
+    #             num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+    #         # nonzero_indices = torch.nonzero(batch["mask"][i][..., 0], as_tuple=False)
+    #         nonzero_indices = batch["mask"][i]
+
+    #         chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_in_batch)
+    #         indices = nonzero_indices[chosen_indices]
+    #         indices = torch.cat([torch.full((num_rays_in_batch, 1), i, device=device), indices], dim=-1)
+    #         all_indices.append(indices)
+    #         all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+    #         if "fg_mask" in batch:
+    #             all_fg_masks.append(batch["fg_mask"][i][indices[:, 1], indices[:, 2]])
 
     else:
         num_rays_in_batch = num_rays_per_batch // num_images

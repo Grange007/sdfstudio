@@ -461,7 +461,12 @@ method_configs["neus-facto"] = Config(
     ),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=SDFStudioDataParserConfig(),
+            dataparser=SDFStudioDataParserConfig(
+                # scale_factor=100,
+                # auto_scale_poses=True,
+                include_mono_prior=True,
+                include_foreground_mask=True
+            ),
             train_num_rays_per_batch=2048,
             eval_num_rays_per_batch=1024,
             camera_optimizer=CameraOptimizerConfig(
@@ -480,6 +485,14 @@ method_configs["neus-facto"] = Config(
             ),
             background_model="none",
             eval_num_rays_per_chunk=1024,
+            fg_mask_loss_mult=0.0,
+            # mono_depth_loss_mult=0.1,
+            # mono_normal_loss_mult=0.05,
+            eikonal_loss_mult=0.5,
+            sensor_depth_truncation=0.1,
+            sensor_depth_l1_loss_mult=1.0,
+            sensor_depth_freespace_loss_mult=10000.0,
+            sensor_depth_sdf_loss_mult=6000,
         ),
     ),
     optimizers={

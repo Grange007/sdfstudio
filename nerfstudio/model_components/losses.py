@@ -645,7 +645,7 @@ class SensorDepthLoss(nn.Module):
             sdf_loss: sdf loss
         """
         depth_pred = outputs["depth"]
-        depth_gt = batch["sensor_depth"].to(depth_pred.device)[..., None]
+        depth_gt = batch["depth"].to(depth_pred.device)[..., None]
         valid_gt_mask = depth_gt > 0.0
 
         l1_loss = torch.sum(valid_gt_mask * torch.abs(depth_gt - depth_pred)) / (valid_gt_mask.sum() + 1e-6)

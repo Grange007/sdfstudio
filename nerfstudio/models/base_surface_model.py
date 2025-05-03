@@ -399,7 +399,7 @@ class SurfaceModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict:
         loss_dict = {}
         image = batch["image"].to(self.device)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+        # loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         if self.training:
             # eikonal loss
             grad_theta = outputs["eik_grad"]
@@ -437,7 +437,7 @@ class SurfaceModel(Model):
                 )
 
             # sensor depth loss
-            if "sensor_depth" in batch and (
+            if "depth" in batch and (
                 self.config.sensor_depth_l1_loss_mult > 0.0
                 or self.config.sensor_depth_freespace_loss_mult > 0.0
                 or self.config.sensor_depth_sdf_loss_mult > 0.0
